@@ -1,5 +1,6 @@
 import express from "express";
 import { prisma } from "../utils/prisma/index.js";
+import bcrypt from "bcrypt";
 
 const router = express.Router();
 
@@ -15,10 +16,11 @@ router.post("/sign-up", async (req, res, next) => {
     return res.status(409).json({ message: "이미 존재하는 이메일 입니다." });
   }
 
+  const hashedPassword = await bcrypt.hash(password, 10); // 비밀번호 암호화 작업
   const user = await prisma.users.create({
     data: {
       email,
-      password,
+      password: hashedPassword,
     },
   });
 
