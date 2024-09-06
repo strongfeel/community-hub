@@ -104,4 +104,57 @@ router.get("/users", authMiddleware, async (req, res, next) => {
   return res.status(200).json({ data: user });
 });
 
+//사용자 정보 변경 API
+router.patch("/users/", authMiddleware, async (req, res, next) => {
+  try {
+    const { userId } = req.user;
+    const updatedData = req.body;
+
+    const userInfo = await prisma.userInfos.findFirst({
+      where: { userId: +userId },
+    });
+    if (!userInfo)
+      return res
+        .status(404)
+        .json({ message: "사용자 정보가 존재하지 않습니다." });
+
+    await prisma.$transaction(
+      async (tx) => {
+        // 트랜잭션 내부에서 사용자 정보를 수정합니다.
+        await tx.userInfos.update({
+          data: {
+            ...updatedData,
+          },
+          where: {
+            userId: userInfo.userId,
+          },
+        });
+
+        // 변경된 필드만 UseHistories 테이블에 저장합니다.
+        for (let key in updatedData) {
+          if (userInfo[key] !== updatedData[key]) {
+            await tx.userHistories.create({
+              data: {
+                userId: userInfo.userId,
+                changedField: key,
+                oldValue: String(userInfo[key]),
+                newValue: String(updatedData[key]),
+              },
+            });
+          }
+        }
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      }
+    );
+
+    return res
+      .status(200)
+      .json({ message: "사용자 정보 변경에 성공하였습니다." });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
