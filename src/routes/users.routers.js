@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma/index.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import authMiddleware from "../middlewares/auth.middleware.js";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
@@ -20,22 +21,34 @@ router.post("/sign-up", async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10); // 비밀번호 암호화 작업
-    const user = await prisma.users.create({
-      data: {
-        email,
-        password: hashedPassword,
-      },
-    });
 
-    const userInfo = await prisma.userInfos.create({
-      data: {
-        userId: user.userId,
-        name,
-        age,
-        gender,
-        profileImage,
+    // 트렌젝션 부분: User, UserInfo 합치기
+    const [user, userInfo] = await prisma.$transaction(
+      async (tx) => {
+        const user = await tx.users.create({
+          data: {
+            email,
+            password: hashedPassword,
+          },
+        });
+
+        const userInfo = await tx.userInfos.create({
+          data: {
+            userId: user.userId,
+            name,
+            age,
+            gender,
+            profileImage,
+          },
+        });
+
+        return [user, userInfo];
       },
-    });
+      {
+        // 격리수준 설정
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      }
+    );
 
     return res.status(201).json({ message: "회원가입이 완료되었습니다!" });
   } catch (err) {
