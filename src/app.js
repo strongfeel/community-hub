@@ -1,6 +1,7 @@
 import express, { Router } from "express";
 import cookieParser from "cookie-parser";
 import UsersRouter from "./routes/users.routers.js";
+import PostsRouter from "./routes/posts.router.js";
 import logMiddleware from "./middlewares/log.middleware.js";
 import errorHandlingMiddleware from "./middlewares/error-handling.middleware.js";
 
@@ -11,7 +12,7 @@ app.use(logMiddleware);
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/api", [UsersRouter]);
+app.use("/api", [UsersRouter, PostsRouter]);
 app.use(errorHandlingMiddleware);
 
 app.listen(PORT, () => {
